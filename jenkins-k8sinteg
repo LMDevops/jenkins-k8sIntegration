@@ -1,0 +1,34 @@
+node 
+{
+    def mavenHome = tool name: 'maven3.8.1'
+    stage("SCM Clone") 
+    {
+	git credentialsId: 'git-hub-credentials', url: 'https://github.com/LMDevops/spring-boot-docker'
+    }
+        stage("MavenBuild") {
+            sh "${mavenHome}/bin/mvn clean package"	
+    }
+
+        stage("SonarQubeReport") {
+            //sh "${mavenHome}/bin/mvn sonar:sonar"	
+    }
+
+        stage("UploadToNexus") {
+	        //sh "${mavenHome}/bin/mvn deploy"	
+    }
+        stage("BuildDockerImage") {
+            sh 'docker build -t phyllisn/spring-boot-mongo . '
+    }
+        stage("PushImageReg") {
+            withCredentials([string(credentialsId: 'dockerhubcredentials', variable: 'dockerhubcredentials')]) {
+            sh 'docker login -u phyllisn -p ${dockerhubcredentials} '
+    }
+            sh 'docker push phyllisn/spring-boot-mongo'
+    }
+        stage("RemoveDockerImages") {
+            sh 'docker rmi $(docker images -q)'
+    }
+        stage("deployAppToK8S") {
+            sh 'kubectl apply -f springapp.yml'
+    }
+}
